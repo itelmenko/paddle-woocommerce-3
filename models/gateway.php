@@ -9,12 +9,12 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 	 * @var Paddle_WC_Settings
 	 */
 	private $paddle_settings;
-		
+
 	/**
 	 * Paddle_WC_Payment_Gateway Constructor.
 	 */
 	public function __construct($settings = null) {
-		
+
 		$this->paddle_settings    = isset($settings) ? $settings : new Paddle_WC_Settings();
 
 		$this->id                 = 'paddle';
@@ -25,14 +25,14 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 		$this->icon               = apply_filters('wc_paddle_icon', '');
 		$this->supports           = array('products');	// We only support purchases
 		$this->has_fields         = true;
-			
+
 		// Setup fields used for admin side
 		$this->init_form_fields();
 		// Load settings (we haven't overriden, but must be called in ctor)
 		$this->init_settings();
-		
+
 		$this->enabled 			  = $this->paddle_settings->get('enabled');
-		
+
 		if (is_admin() && $this->enabled == 'yes') {
 			if(!$this->paddle_settings->currency_supported) {
 				// Inform users if they are not able to use this plugin due to currency
@@ -45,7 +45,7 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 			$this->admin_check_connected();
 		}
 	}
-	
+
 	/**
 	 * Registers the callbacks (WC hooks) that we need for the Gateway to function.
 	 */
@@ -53,7 +53,7 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 		$this->register_webhook_actions();
 		$this->register_admin_actions();
 	}
-	
+
 	/**
 	 * Registers the our webhook callbacks to listen to Paddle after payment hooks.
 	 */
@@ -61,7 +61,7 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 		// Add the handler for the webhook - register gateway response listener
 		add_action('woocommerce_api_paddle_complete', array($this, 'on_paddle_payment_webhook_response'));
 	}
-	
+
 	/**
 	 * Registers the callbacks used by the admin interface.
 	 */
@@ -73,7 +73,7 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 			} else {
 				add_action('woocommerce_update_options_payment_gateways', array($this, 'process_admin_options'));
 			}
-			
+
 			// Callback to inject extra JS to admin page
 			add_action('admin_enqueue_scripts', array($this, 'on_admin_enqueue_scripts'));
 		}
@@ -94,22 +94,22 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 			wp_enqueue_script('paddle-helpers');
 		}
 	}
-	
+
 	/**
 	 * Check if this gateway can be used.
 	 */
 	public function is_available() {
 		// Parent class checks enabled flag anyway
 		$is_available = parent::is_available();
-		
+
 		// Check all required fields set
-		$is_available = $is_available && 
+		$is_available = $is_available &&
 			$this->paddle_settings->currency_supported && 	// Check if WooCoommerce currency is supported by gateway
 			$this->paddle_settings->is_connected; 			// Check if gateway is integrated with paddle vendor account
-		
+
         return $is_available;
 	}
-	
+
 	/**
 	 * Checks if we are connected, and displays an error message if not.
 	 */
@@ -129,9 +129,9 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 		// Whenever we save, also reset the public key, to force it to be reloaded in case the vendor has changed
 		update_option('paddle_vendor_public_key', '');
 		$result = parent::process_admin_options();
-		
+
 		$this->admin_check_connected();
-		
+
 		return $result;
 	}
 
@@ -155,11 +155,11 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 		} else {
 			$result = $pay_url_json;
 		}
-		
+
 		echo $result;
 		exit;
 	}
-	
+
 	/**
 	 * Called when we get a webhook response from Paddle to indicate the payment completed.
 	 *
@@ -167,9 +167,10 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 	 */
 	public function on_paddle_payment_webhook_response() {
 		if (Paddle_WC_API::check_webhook_signature()) {
-			$order_id = $_GET['order_id'];
+            $passthrough = json_decode(base64_decode($_POST['passthrough']));
+			$order_id = $passthrough->order_id ?? NULL;
 			if (is_numeric($order_id) && (int) $order_id == $order_id) {
-				$order = new WC_Order($order_id);
+				$order = new WC_Order((int) $order_id);
 				if (is_object($order) && $order instanceof WC_Order) {
 					$order->payment_complete();
 					status_header(200);
@@ -213,7 +214,7 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 
 	/**
 	 * Custom validation function to check that a product icon is usable. Called externally by woocommerce
-	 * 
+	 *
 	 * If the value is invalid in some way, it fixes minor issues (e.g. converting http to https)
 	 *
 	 * @param string the name of the field to be validated
@@ -246,14 +247,14 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 
 		return $image_url;
 	}
-	
+
 	/**
 	 * Setup admin fields to be shown in plugin settings.
 	 */
 	public function init_form_fields() {
 		// Note: Not sure I really like this mash of HTML inside the class, but this seems to be pretty
-		//	standard among WC plugins so I'm going with it for consistency. 
-		
+		//	standard among WC plugins so I'm going with it for consistency.
+
 		if ($this->paddle_settings->is_connected) {
 			$connection_button = '<p style=\'color:green\'>Your paddle account has already been connected</p>' .
 				'<a class=\'button-primary open_paddle_popup\'>Reconnect your Paddle Account</a>';
@@ -312,6 +313,19 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 				'type' => 'text',
 				'default' => 'https://s3.amazonaws.com/paddle/default/default_product_icon.png'
 			),
+            'product_id' => array(
+                'title' => __('Product ID'),
+                'description' => __('ID of the product to use in the paddle checkout. Discountable if discountable option is checked'),
+                'type' => 'text',
+                'default' => NULL
+            ),
+            'discountable' => array(
+                'title' => __('Discountable'),
+                'description' => __('If you wish to use coupons, check this option'),
+                'type' => 'checkbox',
+                'label' => __('Can users use coupons?', 'woocommerce'),
+                'default' => 'no'
+            ),
 			'send_names' => array(
 				'title' => __('Send Product Names'),
 				'description' => __('Should the names of the product(s) in the cart be shown on the checkout?'),

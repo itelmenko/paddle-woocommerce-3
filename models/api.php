@@ -2,9 +2,9 @@
 
 /**
  * Class that wraps Paddle API functionality.
- */  
+ */
 class Paddle_WC_API {
-    
+
     /**
      * Fetches a signed payment URL using the Paddle API to pay for the given order
      *
@@ -18,8 +18,8 @@ class Paddle_WC_API {
 		$order_total = $order->get_total();
         if($settings->get('vat_included_in_price') != 'yes') {
             $order_total -= $order->get_total_tax();
-        } 
-        
+        }
+
         // Data to be sent to Paddle gateway
 		$data = array();
 		$data['vendor_id']             = $settings->get('paddle_vendor_id');
@@ -28,27 +28,38 @@ class Paddle_WC_API {
 		$data['return_url']            = static::get_return_url($order);
 		$data['title']                 = str_replace('{#order}', $order->get_id(), $settings->get('product_name'));
 		$data['image_url']             = $settings->get('product_icon');
-		$data['webhook_url']           = static::get_webhook_url($order->get_id());
-		$data['discountable']          = 0;
+        $product_id = trim($settings->get('product_id'));
+		if(!empty($product_id)) {
+            $data['product_id'] = $product_id;
+        } else {
+            $data['webhook_url'] = static::get_webhook_url();
+        }
+		$data['discountable']          = $settings->get('discountable') == 'yes' ? 1 : 0;
 		$data['quantity_variable']     = 0;
 		$data['customer_email']        = $order->get_billing_email();
 		$data['customer_postcode']     = $customer->get_billing_postcode();
 		$data['customer_country']      = $customer->get_billing_country();
-		
+
 		// Add the product name(s) as custom message
 		if($settings->get('send_names') == 'yes') {
 			$items = $order->get_items();
 			$names = array();
-			$passthrough = array();
+			$passthrough = array(
+			    "products" => array(),
+                "order_id" => $order->get_id()
+            );
 			foreach($items as $item) {
 				$names[] = $item['name'];
-				$passthrough[] = array("products"=>array("id"=>$item['product_id'],"name"=>$item['name'])); //so that you can trace the order history later directly from paddle dashboard
+				$passthrough["products"][] = array(
+                    "id" => $item['product_id'],
+                    "name" => $item['name']
+                ); // so that you can trace the order history later directly from paddle dashboard
 			}
 			$data['custom_message'] = implode(', ', array_unique($names));
 			$data['title'] = implode(', ', array_unique($names));
 			$data['passthrough'] = base64_encode(json_encode($passthrough));
 		}
-		
+
 		// Get pay link from Paddle API
 		$post_url = Paddle_WC_Settings::PADDLE_ROOT_URL . Paddle_WC_Settings::API_GENERATE_PAY_LINK_URL;
 		$api_start_time = microtime(true);
@@ -100,20 +111,18 @@ class Paddle_WC_API {
 			}
 		}
 	}
-    
+
     /**
      * Gets the URL we want Paddle to call on payment completion.
-     * 
-     * @param int $order_id The WC id of the order that will be paid.
      */
-    private static function get_webhook_url($order_id) {
+    private static function get_webhook_url() {
         // Adding index.php makes it work for customers without permalinks, and doesn't seem to affect ones with
-	    return get_bloginfo('url') . '/index.php/wc-api/paddle_complete?order_id=' . $order_id;
+	    return get_bloginfo('url') . '/index.php/wc-api/paddle_complete';
 	}
 
     /**
      * Gets the the checkout should return to once it is complete.
-     * 
+     *
      * @param int $order_id The WC id of the order that will be paid.
      */
 	private static function get_return_url($order) {
@@ -123,13 +132,13 @@ class Paddle_WC_API {
 		}
 		return apply_filters('woocommerce_get_return_url', $return_url);
 	}
-    
+
     /**
 	 * Checks the signature from a given webhook so we know it's genuine
-	 * 
+	 *
 	 * @return int Returns 1 if the signature is correct, 0 if it is incorrect, and -1 on error.
 	 */
-	public static function check_webhook_signature() {  
+	public static function check_webhook_signature() {
 		// Log error if vendor_public_key is not set
 		$vendor_public_key = Paddle_WC_Settings::instance()->getPaddleVendorKey();
 		if (empty($vendor_public_key)) {
@@ -152,5 +161,5 @@ class Paddle_WC_API {
 		$data = serialize($webhook_data);
 		return openssl_verify($data, $signature, $vendor_public_key, OPENSSL_ALGO_SHA1);
 	}
-    
+
 }
