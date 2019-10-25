@@ -139,7 +139,7 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 	 * This function is called by WC when user places order with Paddle chosen as the payment method.
 	 * We actually want to get the payment URL and pass it back client side to the overlay checkout.
 	 * @param int $order_id
-	 * @return mixed
+	 * @return array
 	 */
 	public function process_payment($order_id) {
 		global $woocommerce;
@@ -156,8 +156,20 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 			$result = $pay_url_json;
 		}
 
-		echo $result;
-		exit;
+		// If JS payment window option is checked
+        if(Paddle_WC_Settings::instance()->get('payment_window')=='yes') {
+            echo $result;
+            // load result in browser
+            exit;
+        }
+
+        $data = json_decode($result, TRUE);
+        if(!empty($data['checkout_url'])) {
+            $data['redirect'] = $data['checkout_url'];
+            unset($data['checkout_url']);
+        }
+        error_log(json_encode($data));
+        return $data;
 	}
 
 	/**
@@ -325,6 +337,13 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
                 'type' => 'checkbox',
                 'label' => __('Can users use coupons?', 'woocommerce'),
                 'default' => 'no'
+            ),
+            'payment_window' => array(
+                'title' => __('Payment in JS window'),
+                'description' => __('If you wish to use redirect instead js window for payment form, uncheck this option'),
+                'type' => 'checkbox',
+                'label' => __('Use JS window for payment?', 'woocommerce'),
+                'default' => 'yes'
             ),
 			'send_names' => array(
 				'title' => __('Send Product Names'),

@@ -19,7 +19,10 @@ class Paddle_WC_Settings
 		'product_icon' => '',
 		'product_name' => '',
 		'checkout_hook' => 'woocommerce_checkout_before_customer_details',
-		'send_names' => 'no'
+		'send_names' => 'no',
+        'product_id' => '',
+        'discountable' => 'no',
+        'payment_window' => 'yes'
 	);
 	public $supported_currencies = array(
 		'USD',

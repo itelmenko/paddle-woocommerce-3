@@ -2,30 +2,30 @@
 
 /**
  * Class that registers and handles the intercepts on the WC Checkout page.
- */  
+ */
 class Paddle_WC_Checkout {
-	
+
 	/**
 	 * Instance of our settings object.
 	 *
 	 * @var Paddle_WC_Settings
 	 */
 	private $settings;
-	
+
 	/**
 	 * Paddle_WC_Checkout Constructor.
 	 */
 	public function __construct($settings) {
 		$this->settings = $settings;
 	}
-	
+
 	/**
 	 * Registers the callbacks (WC hooks) that we need to inject Paddle checkout functionality.
 	 */
 	public function register_callbacks() {
 		$this->register_checkout_actions();
 	}
-	
+
 	/**
 	 * Registers the callbacks needed to handle the WC checkout.
 	 */
@@ -51,12 +51,16 @@ class Paddle_WC_Checkout {
 	 * Callback when WP is building the list of scripts for the page.
 	 */
 	public function on_wp_enqueue_scripts() {
+        if($this->settings->get('payment_window')!='yes') {
+            // If JS payment window option is not checked
+            return;
+        }
 		// Inject standard Paddle checkout JS
 		wp_enqueue_script('paddle-checkout', 'https://cdn.paddle.com/paddle/paddle.js');
-		
+
 		// Inject our bootstrap JS to intercept the WC button press and invoke standard JS
 		wp_register_script('paddle-bootstrap', plugins_url('../assets/js/paddle-bootstrap.js', __FILE__), array('jquery'),"3.0.1");
-				
+
 		// Use wp_localize_script to write JS config that can't be embedded in the script
 		$endpoint = is_wc_endpoint_url('order-pay') ? 'paddle_checkout_pay' : 'paddle_checkout';
 		$paddle_data = array(
@@ -66,7 +70,7 @@ class Paddle_WC_Checkout {
 		wp_localize_script('paddle-bootstrap', 'paddle_data', $paddle_data);
 		wp_enqueue_script('paddle-bootstrap');
 	}
-	
+
 	/**
 	 * Receives our AJAX callback to process the checkout
 	 */
@@ -78,7 +82,7 @@ class Paddle_WC_Checkout {
 	/**
 	 * Skip the order creation, and go straight to payment processing
 	 */
-	public function on_ajax_process_checkout_pay() {		
+	public function on_ajax_process_checkout_pay() {
 		if (!WC()->session->order_awaiting_payment) {
 			wc_add_notice('We were unable to process your order, please try again.', 'error');
 			ob_start();
@@ -92,7 +96,7 @@ class Paddle_WC_Checkout {
 			));
 			exit;
 		}
-		
+
 		// Need the id of the pre-created order
 		$order_id = WC()->session->order_awaiting_payment;
 		// Get the paddle payment gateway - the payment_method should be posted as "paddle"
@@ -100,7 +104,7 @@ class Paddle_WC_Checkout {
 		$available_gateways['paddle']->process_payment($order_id);
 		// The process_payment function will exit, so we don't need to return anything here
 	}
-	
+
 	/**
 	 * Gets the path to be called to invoke the given AJAX endpoint.
 	 *
@@ -119,5 +123,5 @@ class Paddle_WC_Checkout {
 		}
 		return $order_url;
 	}
-	
+
 }
