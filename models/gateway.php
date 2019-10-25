@@ -22,7 +22,7 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 		$this->method_description = 'Allow customers to securely checkout with credit cards or PayPal';
 		$this->title              = 'Paddle Payments';
 		$this->description        = $this->paddle_settings->get('description');
-		$this->icon               = apply_filters('wc_paddle_icon', '');
+		$this->icon               = plugins_url('../assets/images/paddle.svg', __FILE__);
 		$this->supports           = array('products');	// We only support purchases
 		$this->has_fields         = true;
 
@@ -168,7 +168,6 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
             $data['redirect'] = $data['checkout_url'];
             unset($data['checkout_url']);
         }
-        error_log(json_encode($data));
         return $data;
 	}
 
