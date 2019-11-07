@@ -177,9 +177,11 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 	 * Returns HTTP 200 if OK, 500 otherwise
 	 */
 	public function on_paddle_payment_webhook_response() {
+        error_log("WebHook POST: ".json_encode($_POST));
 		if (Paddle_WC_API::check_webhook_signature()) {
             $passthrough = json_decode(base64_decode($_POST['passthrough']));
 			$order_id = $passthrough->order_id ?? NULL;
+            error_log("ORDER ID: {$order_id}");
 			if (is_numeric($order_id) && (int) $order_id == $order_id) {
 				$order = new WC_Order((int) $order_id);
 				if (is_object($order) && $order instanceof WC_Order) {

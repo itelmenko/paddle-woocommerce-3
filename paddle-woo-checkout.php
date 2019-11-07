@@ -16,7 +16,7 @@ if (!class_exists('Paddle_WC')) :
  * Main Paddle_WC Class.
  *
  * @class Paddle_WC
- * @version	3.1.2
+ * @version	3.1.3
  */
 final class Paddle_WC {
 
