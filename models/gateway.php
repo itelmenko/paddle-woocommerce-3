@@ -326,7 +326,7 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 			),
             'product_id' => array(
                 'title' => __('Product ID'),
-                'description' => __('ID of the product to use in the paddle checkout. Discountable if discountable option is checked'),
+                'description' => __('ID of the product to use in the paddle checkout. Mandatory if discountable option is checked'),
                 'type' => 'text',
                 'default' => NULL
             ),
