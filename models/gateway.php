@@ -185,6 +185,8 @@ class Paddle_WC_Gateway extends WC_Payment_Gateway {
 			if (is_numeric($order_id) && (int) $order_id == $order_id) {
 				$order = new WC_Order((int) $order_id);
 				if (is_object($order) && $order instanceof WC_Order) {
+				    // Save Paddle's payment_id
+                    update_post_meta($order->get_id(), '_gate_payment_id', $_POST['p_order_id']);
 					$order->payment_complete();
 					status_header(200);
 					exit;
